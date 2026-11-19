@@ -19,10 +19,9 @@ fmt:
 	golangci-lint fmt
 
 test:
-	go test ./... -v
+	go test -coverprofile=coverage.out ./...
 
 cover:
-	go test ./... -coverprofile=coverage.out
 	go tool cover -func=coverage.out
 
 cover-html: cover
@@ -32,7 +31,6 @@ check: test lint build clean
 	@echo "✅ All checks passed"
 
 clean:
-	rm -f $(BIN)
-	rm -f coverage.out
+	rm -f $(BIN) coverage*.out
 
-.PHONY: install uninstall test fmt lint-fix lint build cover cover-html clean run check 
+.PHONY: install uninstall test fmt lint-fix lint build cover cover-html clean check
