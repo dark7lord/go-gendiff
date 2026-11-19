@@ -85,63 +85,71 @@ func renderStylishValue(value any, deep int) string {
 	}
 }
 
+func writeStylishField(builder *strings.Builder, prefix, key string, value any, deep int, pad string) {
+	if deep == 0 {
+		builder.WriteString(strings.TrimLeft(prefix, " "))
+		builder.WriteString(renderStylishValue(value, deep))
+
+		return
+	}
+
+	builder.WriteString(pad)
+	builder.WriteString(prefix)
+	fmt.Fprintf(builder, "%s: %s", key, renderStylishValue(value, deep))
+}
+
+func renderStylishNested(df diff.Node, deep int, pad string) string {
+	var builder strings.Builder
+
+	if deep > 0 {
+		builder.WriteString(pad)
+		fmt.Fprintf(&builder, "  %s: ", df.Key)
+	}
+
+	if len(df.Children) == 0 {
+		builder.WriteString("{}")
+
+		return builder.String()
+	}
+
+	builder.WriteString("{")
+
+	for _, child := range df.Children {
+		builder.WriteByte('\n')
+		childStr := renderStylish(child, deep+1)
+		builder.WriteString(childStr)
+	}
+
+	builder.WriteByte('\n')
+	builder.WriteString(strings.Repeat(" ", deep*4))
+	builder.WriteString("}")
+
+	return builder.String()
+}
+
 func renderStylish(df diff.Node, deep int) string {
 	var builder strings.Builder
 
 	repeats := (4 * deep) - 2
 	pad := strings.Repeat(" ", max(repeats, 0))
 
-	writeKeyValue := func(prefix, key string, value any) {
-		if deep == 0 {
-			trimmedPrefix := strings.TrimLeft(prefix, " ")
-			builder.WriteString(trimmedPrefix)
-			builder.WriteString(renderStylishValue(value, deep))
-
-			return
-		}
-
-		builder.WriteString(pad)
-		builder.WriteString(prefix)
-		fmt.Fprintf(&builder, "%s: %s", key, renderStylishValue(value, deep))
-	}
-
 	switch df.TypeDiff {
 	case diff.Unchanged:
-		writeKeyValue("  ", df.Key, df.OldValue)
+		writeStylishField(&builder, "  ", df.Key, df.OldValue, deep, pad)
 
 	case diff.Removed:
-		writeKeyValue("- ", df.Key, df.OldValue)
+		writeStylishField(&builder, "- ", df.Key, df.OldValue, deep, pad)
 
 	case diff.Added:
-		writeKeyValue("+ ", df.Key, df.NewValue)
+		writeStylishField(&builder, "+ ", df.Key, df.NewValue, deep, pad)
 
 	case diff.Changed:
-		writeKeyValue("- ", df.Key, df.OldValue)
+		writeStylishField(&builder, "- ", df.Key, df.OldValue, deep, pad)
 		builder.WriteByte('\n')
-		writeKeyValue("+ ", df.Key, df.NewValue)
+		writeStylishField(&builder, "+ ", df.Key, df.NewValue, deep, pad)
 
 	case diff.Nested:
-		if deep > 0 {
-			builder.WriteString(pad)
-			fmt.Fprintf(&builder, "  %s: ", df.Key)
-		}
-
-		if len(df.Children) == 0 {
-			builder.WriteString("{}")
-			return builder.String()
-		}
-
-		builder.WriteString("{")
-
-		for _, child := range df.Children {
-			builder.WriteByte('\n')
-			childStr := renderStylish(child, deep+1)
-			builder.WriteString(childStr)
-		}
-
-		builder.WriteByte('\n')
-		builder.WriteString(strings.Repeat(" ", deep*4))
-		builder.WriteString("}")
+		builder.WriteString(renderStylishNested(df, deep, pad))
 	}
 
 	return builder.String()
